@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "paths": {
+      "@factory/shared-contracts": ["./packages/shared-contracts/src"],
+      "@factory/shared-events": ["./packages/shared-events/src"],
+      "@factory/shared-types": ["./packages/shared-types/src"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "**/*.spec.ts"]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@factory/shared-contracts",
+  "version": "1.0.0",
+  "description": "Shared DTOs, contracts and validators for Factory Platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@factory/shared-types": "^1.0.0",
+    "class-validator": "^0.14.1",
+    "class-transformer": "^0.5.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

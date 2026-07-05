@@ -1,0 +1,18 @@
+{
+  "name": "@factory/shared-events",
+  "version": "1.0.0",
+  "description": "Shared NATS event subjects and payloads for Factory Platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@factory/shared-types": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

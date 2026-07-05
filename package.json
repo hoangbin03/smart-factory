@@ -1,0 +1,39 @@
+{
+  "name": "factory-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Smart Software Factory Platform — AI-driven software delivery orchestration",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev": "concurrently \"npm run dev -w apps/api-gateway\" \"npm run dev -w apps/frontend\"",
+    "dev:gateway": "npm run dev -w apps/api-gateway",
+    "dev:frontend": "npm run dev -w apps/frontend",
+    "dev:orchestrator": "npm run dev -w services/orchestrator-service",
+    "dev:workflow": "npm run dev -w services/workflow-service",
+    "dev:task": "npm run dev -w services/task-service",
+    "dev:registry": "npm run dev -w services/agent-registry-service",
+    "dev:approval": "npm run dev -w services/approval-service",
+    "dev:audit": "npm run dev -w services/audit-service",
+    "infra:up": "docker compose up -d postgres redis nats",
+    "infra:down": "docker compose down",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down -v",
+    "docker:logs": "docker compose logs -f",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}
