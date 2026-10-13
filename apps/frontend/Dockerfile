@@ -8,7 +8,8 @@ COPY package.json package-lock.json ./
 COPY packages/ ./packages/
 COPY apps/frontend/package.json ./apps/frontend/
 
-RUN npm ci
+# npm install (not ci) so newly-added deps resolve without a pre-updated lockfile
+RUN npm install
 
 COPY apps/frontend/ ./apps/frontend/
 

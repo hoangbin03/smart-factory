@@ -10,8 +10,10 @@ import { TaskEngineModule } from './task-engine/task-engine.module';
 import { StateManagerModule } from './state-manager/state-manager.module';
 import { AgentResolverModule } from './agent-resolver/agent-resolver.module';
 import { NatsModule } from './nats/nats.module';
+import { HealthController } from './health.controller';
 
 @Module({
+  controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),

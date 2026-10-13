@@ -16,6 +16,7 @@ COPY apps/api-gateway/nest-cli.json ./apps/api-gateway/
 COPY apps/api-gateway/src/ ./apps/api-gateway/src/
 
 # Install dependencies
+RUN apk add --no-cache python3 make g++
 RUN npm install
 RUN npm run build -w packages/shared-types --if-present
 RUN npm run build -w packages/shared-events --if-present
@@ -41,6 +42,6 @@ WORKDIR /app/apps/api-gateway
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget -q --spider http://localhost:3000/api/health || exit 1
+  CMD wget -q --spider http://127.0.0.1:3000/api/health || exit 1
 
 CMD ["node", "dist/main"]

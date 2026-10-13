@@ -2,17 +2,21 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Bot, CheckCircle, FileText, GitBranch, KeyRound, LayoutDashboard, ListTodo, Zap } from 'lucide-react';
+import { Activity, Bot, CheckCircle, FileText, FolderGit2, GitBranch, KeyRound, LayoutDashboard, ListTodo, Sparkles, Wrench, Zap } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/nexus', label: 'Nexus Master', icon: Zap },
+  { href: '/projects', label: 'Projects', icon: FolderGit2 },
   { href: '/workflows', label: 'Workflows', icon: GitBranch },
   { href: '/tasks', label: 'Tasks', icon: ListTodo },
-  { href: '/agents', label: 'Agents', icon: Bot },
+  { href: '/agents', label: 'Agent Fleet', icon: Bot },
+  { href: '/agents/config', label: 'Agent Config', icon: KeyRound },
+  { href: '/tools', label: 'Tool Config', icon: Wrench },
+  { href: '/templates', label: 'Templates & Skills', icon: Sparkles },
+  { href: '/kbs', label: 'Knowledge Base', icon: FileText },
   { href: '/approvals', label: 'Approvals', icon: CheckCircle },
-  { href: '/audit', label: 'Audit Trail', icon: FileText },
-  { href: '/monitoring', label: 'Monitoring', icon: Activity },
-  { href: '/auth', label: 'Auth', icon: KeyRound },
+  { href: '/audit', label: 'Audit Trail', icon: Activity },
 ];
 
 export function Sidebar() {

@@ -4,6 +4,7 @@ import { Repository, FindManyOptions, ILike } from 'typeorm';
 import { ClientProxy } from '@nestjs/microservices';
 import { v4 as uuidv4 } from 'uuid';
 import { WorkflowEntity } from './entities/workflow.entity';
+import { TaskEntity } from '../task/entities/task.entity';
 import { CreateWorkflowDto, UpdateWorkflowDto } from './dto/workflow.dto';
 import { WorkflowStatus } from '@factory/shared-types';
 import { EventSubjects } from '@factory/shared-events';
@@ -14,6 +15,8 @@ export class WorkflowService {
   constructor(
     @InjectRepository(WorkflowEntity)
     private readonly workflowRepo: Repository<WorkflowEntity>,
+    @InjectRepository(TaskEntity)
+    private readonly taskRepo: Repository<TaskEntity>,
     @Inject(NATS_CLIENT) private readonly natsClient: ClientProxy,
   ) {}
 
@@ -124,6 +127,68 @@ export class WorkflowService {
   async remove(id: string): Promise<void> {
     const workflow = await this.findOne(id);
     await this.workflowRepo.remove(workflow);
+  }
+
+  async getArtifacts(workflowId: string) {
+    await this.findOne(workflowId);
+    const tasks = await this.taskRepo.find({
+      where: { workflowId },
+      order: { order: 'ASC' },
+    });
+
+    return tasks.flatMap((task) => {
+      const output = task.output ?? {};
+      const artifacts = Array.isArray((output as any).artifacts)
+        ? (output as any).artifacts
+        : [];
+
+      return artifacts
+        .filter((artifact: any) => artifact && typeof artifact.content === 'string')
+        .map((artifact: any) => ({
+          taskId: task.id,
+          agentId: task.agentId,
+          artifactType: String(artifact.artifactType ?? artifact.artifact_type ?? 'file'),
+          name: String(artifact.name ?? 'artifact.txt'),
+          content: String(artifact.content ?? ''),
+          metadata: artifact.metadata ?? {},
+        }));
+    });
+  }
+
+  async getPreviewHtml(workflowId: string): Promise<string> {
+    const artifacts = await this.getArtifacts(workflowId);
+    const findByName = (name: string) => artifacts.find((artifact) => artifact.name.toLowerCase() === name);
+    const index = findByName('index.html') ?? artifacts.find((artifact) => artifact.artifactType.includes('html'));
+    const styles = artifacts
+      .filter((artifact) => artifact.name.toLowerCase().endsWith('.css') || artifact.artifactType.includes('css'))
+      .map((artifact) => artifact.content)
+      .join('\n\n');
+    const scripts = artifacts
+      .filter((artifact) => artifact.name.toLowerCase().endsWith('.js') || artifact.artifactType.includes('javascript'))
+      .map((artifact) => artifact.content)
+      .join('\n\n');
+
+    if (!index) {
+      return this.emptyPreviewHtml(workflowId);
+    }
+
+    let html = index.content;
+    if (styles && !html.includes('<style data-factory-preview>')) {
+      html = html.includes('</head>')
+        ? html.replace('</head>', `<style data-factory-preview>\n${styles}\n</style></head>`)
+        : `<style data-factory-preview>\n${styles}\n</style>${html}`;
+    }
+    if (scripts && !html.includes('<script data-factory-preview>')) {
+      html = html.includes('</body>')
+        ? html.replace('</body>', `<script data-factory-preview>\n${scripts}\n</script></body>`)
+        : `${html}<script data-factory-preview>\n${scripts}\n</script>`;
+    }
+
+    return html;
+  }
+
+  private emptyPreviewHtml(workflowId: string): string {
+    return `<!doctype html><html><head><meta charset="utf-8"><title>No preview</title><style>body{font-family:system-ui;margin:40px;color:#0f172a}code{background:#f1f5f9;padding:2px 6px;border-radius:4px}</style></head><body><h1>No runnable preview yet</h1><p>Workflow <code>${workflowId}</code> has no <code>index.html</code> artifact yet. Start the workflow and wait for the developer task to complete.</p></body></html>`;
   }
 
   async getStats() {

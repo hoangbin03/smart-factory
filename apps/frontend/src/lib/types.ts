@@ -21,6 +21,14 @@ export type Workflow = {
   updatedAt: string;
 };
 
+export type WorkflowArtifact = {
+  taskId: string;
+  agentId?: string | null;
+  artifactType: string;
+  name: string;
+  content: string;
+  metadata: Record<string, unknown>;
+};
 export type Task = {
   id: string;
   workflowId: string;

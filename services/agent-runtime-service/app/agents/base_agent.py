@@ -20,6 +20,15 @@ class AgentTaskInput:
     goal: str
     context: dict[str, Any] = field(default_factory=dict)
     constraints: dict[str, Any] = field(default_factory=dict)
+    # Disk workspace to operate on. For a workflow that belongs to a project this
+    # is the PROJECT's id (shared codebase); for a standalone workflow it is the
+    # workflow id. Always set by the runner — defaults to workflow_id.
+    workspace_id: str = ""
+
+    @property
+    def ws(self) -> str:
+        """The workspace directory id to operate on (project id, or workflow id)."""
+        return self.workspace_id or self.workflow_id
 
 
 @dataclass

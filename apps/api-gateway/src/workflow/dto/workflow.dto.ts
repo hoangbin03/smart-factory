@@ -16,6 +16,11 @@ export class CreateWorkflowDto {
   @IsString()
   goal: string;
 
+  @ApiProperty({ required: false, description: 'Owning project id (workflow runs on the project workspace)' })
+  @IsOptional()
+  @IsString()
+  projectId?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsObject()

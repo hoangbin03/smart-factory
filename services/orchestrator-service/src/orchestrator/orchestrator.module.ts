@@ -4,15 +4,17 @@ import { OrchestratorController } from './orchestrator.controller';
 import { WorkflowEngineModule } from '../workflow-engine/workflow-engine.module';
 import { TaskEngineModule } from '../task-engine/task-engine.module';
 import { AgentResolverModule } from '../agent-resolver/agent-resolver.module';
+import { AuditService } from '../audit/audit.service';
+import { ApprovalService } from '../approval/approval.service';
 
 @Module({
   imports: [
-    WorkflowEngineModule, 
-    TaskEngineModule, 
+    WorkflowEngineModule,
+    TaskEngineModule,
     AgentResolverModule,
   ],
   controllers: [OrchestratorController],
-  providers: [OrchestratorService],
+  providers: [OrchestratorService, AuditService, ApprovalService],
   exports: [OrchestratorService],
 })
 export class OrchestratorModule {}

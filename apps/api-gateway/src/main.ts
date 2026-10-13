@@ -6,6 +6,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -25,6 +26,10 @@ async function bootstrap() {
       : true,
     credentials: true,
   });
+
+  // ─── Body parsers (raised limit for folder-import uploads) ────────
+  app.use(json({ limit: '25mb' }));
+  app.use(urlencoded({ extended: true, limit: '25mb' }));
 
   // ─── Compression & Logging ────────────────────────────────────────
   app.use(compression());

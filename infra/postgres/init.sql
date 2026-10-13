@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS workflows (
   description   TEXT,
   status        workflow_status NOT NULL DEFAULT 'PENDING',
   goal          TEXT NOT NULL,
+  project_id    UUID,
   config        JSONB DEFAULT '{}',
   metadata      JSONB DEFAULT '{}',
   created_by    UUID,
@@ -210,6 +211,26 @@ CREATE INDEX IF NOT EXISTS idx_agent_artifacts_workflow_id ON agent_artifacts(wo
 CREATE INDEX IF NOT EXISTS idx_agent_artifacts_type ON agent_artifacts(artifact_type);
 
 -- ─────────────────────────────────────────
+-- SKILLS & TEMPLATES
+-- ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS skills (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  slug          VARCHAR(255) UNIQUE NOT NULL,
+  name          VARCHAR(255) NOT NULL,
+  description   TEXT,
+  category      VARCHAR(100) NOT NULL DEFAULT 'general',
+  kind          VARCHAR(50) NOT NULL DEFAULT 'skill',
+  instructions  TEXT NOT NULL,
+  tags          TEXT[] DEFAULT ARRAY[]::TEXT[],
+  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_skills_slug ON skills(slug);
+CREATE INDEX IF NOT EXISTS idx_skills_kind ON skills(kind);
+
+-- ─────────────────────────────────────────
 -- USER & AUTH TABLES
 -- ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
@@ -231,25 +252,35 @@ CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 -- ─────────────────────────────────────────
 -- SEED: DEFAULT AGENTS
 -- ─────────────────────────────────────────
-INSERT INTO agents (agent_id, name, description, role, runtime, capabilities, tools, status) VALUES
+INSERT INTO agents (agent_id, name, description, role, runtime, capabilities, tools, status, config) VALUES
   ('architect_agent', 'Architect Agent', 'Designs system architecture, services, and database schemas', 'architect', 'nemo',
    ARRAY['architecture_design', 'system_design', 'database_design', 'api_design'],
-   ARRAY['search_tool', 'documentation_tool'], 'HEALTHY'),
+   ARRAY['search_tool', 'documentation_tool'], 'HEALTHY',
+   '{"ai":{"provider":"openrouter","model":"openai/gpt-4o-mini","temperature":0.1,"top_p":1,"max_tokens":4096,"presence_penalty":0,"frequency_penalty":0}}'::jsonb),
   ('planner_agent', 'Planner Agent', 'Breaks down goals into epics, stories, and actionable tasks', 'planner', 'nemo',
    ARRAY['planning', 'task_decomposition', 'estimation', 'roadmapping'],
-   ARRAY['planning_tool'], 'HEALTHY'),
+   ARRAY['planning_tool'], 'HEALTHY',
+   '{"ai":{"provider":"openrouter","model":"openai/gpt-4o-mini","temperature":0.1,"top_p":1,"max_tokens":4096,"presence_penalty":0,"frequency_penalty":0}}'::jsonb),
   ('developer_agent', 'Developer Agent', 'Writes, refactors, and tests source code', 'developer', 'nemo',
    ARRAY['coding', 'refactoring', 'testing', 'debugging'],
-   ARRAY['git_tool', 'filesystem_tool', 'terminal_tool', 'search_tool'], 'HEALTHY'),
+   ARRAY['git_tool', 'filesystem_tool', 'terminal_tool', 'search_tool'], 'HEALTHY',
+   '{"ai":{"provider":"openrouter","model":"openai/gpt-4o-mini","temperature":0.1,"top_p":1,"max_tokens":8192,"presence_penalty":0,"frequency_penalty":0}}'::jsonb),
   ('reviewer_agent', 'Reviewer Agent', 'Reviews code for quality, security, and best practices', 'reviewer', 'nemo',
    ARRAY['code_review', 'security_analysis', 'quality_assessment'],
-   ARRAY['code_analysis_tool'], 'HEALTHY'),
+   ARRAY['code_analysis_tool'], 'HEALTHY',
+   '{"ai":{"provider":"openrouter","model":"openai/gpt-4o-mini","temperature":0.1,"top_p":1,"max_tokens":4096,"presence_penalty":0,"frequency_penalty":0}}'::jsonb),
   ('qa_agent', 'QA Agent', 'Creates and runs tests, produces defect reports', 'qa', 'nemo',
    ARRAY['test_creation', 'test_execution', 'defect_reporting', 'performance_testing'],
-   ARRAY['test_runner_tool'], 'HEALTHY'),
+   ARRAY['test_runner_tool'], 'HEALTHY',
+   '{"ai":{"provider":"openrouter","model":"openai/gpt-4o-mini","temperature":0.1,"top_p":1,"max_tokens":4096,"presence_penalty":0,"frequency_penalty":0}}'::jsonb),
   ('devops_agent', 'DevOps Agent', 'Manages deployments, containers, and infrastructure', 'devops', 'nemo',
    ARRAY['deployment', 'containerization', 'infrastructure', 'monitoring'],
-   ARRAY['docker_tool', 'kubernetes_tool'], 'HEALTHY')
+   ARRAY['docker_tool', 'kubernetes_tool'], 'HEALTHY',
+   '{"ai":{"provider":"openrouter","model":"openai/gpt-4o-mini","temperature":0.1,"top_p":1,"max_tokens":4096,"presence_penalty":0,"frequency_penalty":0}}'::jsonb),
+  ('nexus_agent', 'Nexus AI Master', 'Master Intelligence Agent. Monitors and controls the smart factory.', 'master_intelligence', 'nemo',
+   ARRAY['monitoring', 'analysis', 'reporting', 'coordination'],
+   ARRAY['search_tool', 'documentation_tool'], 'HEALTHY',
+   '{"ai":{"provider":"openrouter","model":"openai/gpt-4o-mini","temperature":0.3,"top_p":1,"max_tokens":2048,"presence_penalty":0,"frequency_penalty":0}}'::jsonb)
 ON CONFLICT (agent_id) DO NOTHING;
 
 -- ─────────────────────────────────────────
@@ -259,3 +290,48 @@ ON CONFLICT (agent_id) DO NOTHING;
 INSERT INTO users (email, username, password_hash, full_name, role) VALUES
   ('admin@factory.local', 'admin', '$2b$12$bz1eUjP7Bhm07qgP//d2Y.eeAItOeuPrIw1S1yLyByeMUVwk8kipW', 'Factory Admin', 'admin')
 ON CONFLICT (email) DO NOTHING;
+
+-- ─────────────────────────────────────────
+-- PROJECTS + KNOWLEDGE GRAPH
+-- ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS projects (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name          VARCHAR(255) NOT NULL,
+  description   TEXT DEFAULT '',
+  source_type   VARCHAR(20) NOT NULL DEFAULT 'empty',  -- empty | git | folder
+  repo_url      TEXT DEFAULT '',
+  status        VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+  config        JSONB DEFAULT '{}',
+  kg_status     VARCHAR(20) NOT NULL DEFAULT 'NONE',    -- NONE | BUILDING | READY | FAILED
+  kg_built_at   TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS kg_nodes (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  node_key      VARCHAR(500) NOT NULL,
+  label         VARCHAR(500) NOT NULL,
+  type          VARCHAR(40) NOT NULL DEFAULT 'concept', -- file|module|class|function|service|datamodel|concept|external
+  meta          JSONB DEFAULT '{}',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (project_id, node_key)
+);
+
+CREATE TABLE IF NOT EXISTS kg_edges (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  source_key    VARCHAR(500) NOT NULL,
+  target_key    VARCHAR(500) NOT NULL,
+  relation      VARCHAR(40) NOT NULL DEFAULT 'relates_to', -- imports|contains|calls|depends_on|relates_to
+  meta          JSONB DEFAULT '{}'
+);
+
+CREATE INDEX IF NOT EXISTS idx_kg_nodes_project ON kg_nodes(project_id);
+CREATE INDEX IF NOT EXISTS idx_kg_edges_project ON kg_edges(project_id);
+CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+
+-- Project owns its workflows: deleting a project removes its runs.
+ALTER TABLE workflows ADD CONSTRAINT fk_workflows_project
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;

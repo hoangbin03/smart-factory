@@ -7,6 +7,7 @@ from typing import Any
 from app.agents.llm_agent import LLMAgent
 from app.agents.base_agent import AgentTaskInput, AgentTaskOutput, AgentArtifact
 from app.core.llm_client import llm_client
+from app.nat.agent_runtime import analyze
 
 
 class PlannerAgent(LLMAgent):
@@ -27,8 +28,10 @@ EPIC → Stories → Tasks
 Each task must specify: role (architect/developer/reviewer/qa/devops)"""
 
     async def run(self, task: AgentTaskInput, plan: list[str]) -> dict[str, Any]:
-        # Generate project plan
-        project_plan = await llm_client.complete(
+        # Generate project plan (via NeMo ReAct when 'planner' enabled)
+        project_plan = await analyze(
+            role="planner",
+            workflow_id=task.ws,
             system_prompt=self.SYSTEM_PROMPT,
             user_prompt=f"""Create a detailed project plan for:
 Goal: {task.goal}

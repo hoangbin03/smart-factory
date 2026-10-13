@@ -1,0 +1,50 @@
+name: Factory CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  # ── Python: agent runtime tool layer ─────────────────────────
+  agent-runtime-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/agent-runtime-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install test dependencies
+        run: pip install pytest pytest-asyncio pydantic pydantic-settings structlog
+      - name: Run tool-layer tests
+        run: python -m pytest -q
+
+  # ── TypeScript: gateway + orchestrator build ─────────────────
+  node-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install workspace dependencies
+        run: npm ci || npm install
+      - name: Build shared packages + services
+        run: npm run build --if-present
+
+  # ── Docker images build cleanly ──────────────────────────────
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build agent-runtime image
+        run: docker build -t factory/agent-runtime services/agent-runtime-service
+      - name: Build orchestrator image
+        run: docker build -f services/orchestrator-service/Dockerfile -t factory/orchestrator .

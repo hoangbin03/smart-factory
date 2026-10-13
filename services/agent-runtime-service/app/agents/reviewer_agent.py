@@ -7,6 +7,8 @@ from typing import Any
 from app.agents.llm_agent import LLMAgent
 from app.agents.base_agent import AgentTaskInput, AgentTaskOutput, AgentArtifact
 from app.core.llm_client import llm_client
+from app.nat.agent_runtime import analyze
+from app.workspace import Workspace
 
 
 class ReviewerAgent(LLMAgent):
@@ -31,12 +33,21 @@ Review dimensions:
 6. Documentation"""
 
     async def run(self, task: AgentTaskInput, plan: list[str]) -> dict[str, Any]:
-        # Code review
-        review = await llm_client.complete(
+        # Read the ACTUAL code the developer wrote to the workspace.
+        workspace = Workspace(task.ws)
+        code = self._render_codebase(workspace.read_all())
+
+        # Code review of the real files. When NeMo is enabled for 'reviewer',
+        # the ReAct agent can also run its own checks (lint, grep) on the files.
+        review = await analyze(
+            role="reviewer",
+            workflow_id=task.ws,
             system_prompt=self.SYSTEM_PROMPT,
             user_prompt=f"""Perform a comprehensive code review for:
 Goal: {task.goal}
-Context: {task.context}
+
+Actual code under review:
+{code}
 
 Provide:
 ## Review Summary
@@ -44,7 +55,9 @@ Provide:
 ## Security Analysis
 ## Performance Analysis
 ## Recommendations
-## Approval Status (APPROVED/CHANGES_REQUIRED/REJECTED)""",
+## Approval Status (APPROVED/CHANGES_REQUIRED/REJECTED)
+
+Only approve if the code is correct, safe, and meets the goal.""",
         )
 
         # Security scan
@@ -73,7 +86,8 @@ Check for:
         reflection: str,
     ) -> AgentTaskOutput:
         review_content = result.get("output", "")
-        approved = "APPROVED" in review_content.upper() and "CHANGES_REQUIRED" not in review_content.upper()
+        upper = review_content.upper()
+        approved = "APPROVED" in upper and "CHANGES_REQUIRED" not in upper and "REJECTED" not in upper
 
         return AgentTaskOutput(
             success=True,
@@ -90,5 +104,28 @@ Check for:
                     content=result.get("security_report", ""),
                 ),
             ],
-            metrics={"approved": approved},
+            metrics={
+                "approved": approved,
+                # tells the orchestrator to loop back to the developer when not approved
+                "needsRework": not approved,
+                "reworkFeedback": None if approved else self._extract_issues(review_content),
+            },
         )
+
+    def _render_codebase(self, files: dict[str, str]) -> str:
+        if not files:
+            return "(No source files were found in the workspace — the developer produced no code.)"
+        blocks = []
+        for name, content in files.items():
+            blocks.append(f"--- FILE: {name} ---\n{content[:6000]}")
+        return "\n\n".join(blocks)[:24000]
+
+    def _extract_issues(self, review: str) -> str:
+        """Pull the 'Issues Found' section back to the developer as rework guidance."""
+        lower = review.lower()
+        start = lower.find("issues found")
+        if start == -1:
+            return review[:1500]
+        end = lower.find("## ", start + 5)
+        section = review[start: end if end != -1 else start + 1500]
+        return section.strip()[:1500]

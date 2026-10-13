@@ -7,6 +7,7 @@ from typing import Any
 from app.agents.llm_agent import LLMAgent
 from app.agents.base_agent import AgentTaskInput, AgentTaskOutput, AgentArtifact
 from app.core.llm_client import llm_client
+from app.nat.agent_runtime import analyze
 
 
 class ArchitectAgent(LLMAgent):
@@ -26,8 +27,10 @@ Output format: Always produce structured documents in Markdown.
 Never write actual code — focus on architecture and design."""
 
     async def run(self, task: AgentTaskInput, plan: list[str]) -> dict[str, Any]:
-        # Generate architecture document
-        arch_doc = await llm_client.complete(
+        # Generate architecture document (via NeMo ReAct when 'architect' enabled)
+        arch_doc = await analyze(
+            role="architect",
+            workflow_id=task.ws,
             system_prompt=self.SYSTEM_PROMPT,
             user_prompt=f"""Design the architecture for:
 Goal: {task.goal}

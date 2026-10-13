@@ -17,6 +17,22 @@ export class WorkflowEngineService {
     return this.workflowRepo.find({ where: { status: WorkflowStatus.RUNNING } });
   }
 
+  async getPausedWorkflows(): Promise<WorkflowEntity[]> {
+    return this.workflowRepo.find({ where: { status: WorkflowStatus.PAUSED } });
+  }
+
+  async pauseWorkflow(id: string): Promise<WorkflowEntity> {
+    const workflow = await this.findOne(id);
+    workflow.status = WorkflowStatus.PAUSED;
+    return this.workflowRepo.save(workflow);
+  }
+
+  async resumeWorkflow(id: string): Promise<WorkflowEntity> {
+    const workflow = await this.findOne(id);
+    workflow.status = WorkflowStatus.RUNNING;
+    return this.workflowRepo.save(workflow);
+  }
+
   async findOne(id: string): Promise<WorkflowEntity> {
     return this.workflowRepo.findOneOrFail({ where: { id } });
   }

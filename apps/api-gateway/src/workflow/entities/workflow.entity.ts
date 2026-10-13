@@ -21,6 +21,9 @@ export class WorkflowEntity {
   @Column({ type: 'text' })
   goal: string;
 
+  @Column({ name: 'project_id', nullable: true, type: 'uuid' })
+  projectId?: string;
+
   @Column({ type: 'jsonb', default: '{}' })
   config: Record<string, unknown>;
 
